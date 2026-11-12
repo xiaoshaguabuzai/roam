@@ -1,0 +1,96 @@
+# ============================================================
+# Roam .gitignore
+# 原则：只上传源码、配置、文档与可复现脚本；
+#       本机工具链、构建产物、运行日志、登录态与任何密钥一律不上传。
+# ============================================================
+
+# ---------- 本机工具链（便携 JDK / Node / Gradle / 缓存） ----------
+.tools/
+.gradle/
+.kotlin/
+gradle-app.setting
+!gradle/wrapper/gradle-wrapper.jar
+
+# ---------- 构建产物 ----------
+build/
+**/build/
+out/
+*.class
+*.jar.tmp
+*.apk
+*.aab
+*.ap_
+*.dex
+*.hprof
+*.cxx/
+.externalNativeBuild/
+.cxx/
+
+# ---------- Android / Gradle 本地配置 ----------
+local.properties
+key.properties
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pem
+*.p8
+google-services.json
+captures/
+
+# ---------- 运行日志 / 崩溃转储 ----------
+*.log
+hs_err_pid*
+replay_pid*
+*.hprof
+
+# ---------- 依赖与包管理缓存 ----------
+node_modules/
+.pnpm-store/
+.yarn/
+bridge/dist/
+bridge/node_modules/
+
+# ---------- 登录态 / Cookie / 本地实验数据 ----------
+.auth/
+spikes/**/.auth/
+spikes/**/out/
+spikes/**/data/
+*.cookie
+cookies.txt
+storageState.json
+
+# ---------- 密钥与环境变量 ----------
+.env
+.env.*
+!.env.example
+secrets.properties
+secrets.json
+*.secret
+api-keys.txt
+
+# ---------- IDE / 编辑器 ----------
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.fleet/
+*.swp
+*.swo
+
+# ---------- 系统文件 ----------
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.lnk
+
+# ---------- 临时与补丁残留 ----------
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+*.rej
+*.part
+*.crdownload
