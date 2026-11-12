@@ -1,0 +1,13 @@
+{
+  "name": "e1-web-driver",
+  "private": true,
+  "type": "module",
+  "description": "E1：探测豆包/通义网页版能否被程序化驱动（登录墙、输入框、回答流、风控）",
+  "scripts": {
+    "probe": "node probe.mjs --mode probe",
+    "login": "node probe.mjs --mode login --site doubao"
+  },
+  "dependencies": {
+    "playwright-core": "^1.56.1"
+  }
+}
