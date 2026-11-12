@@ -127,6 +127,11 @@ async function ensurePage() {
     args: ['--disable-blink-features=AutomationControlled'],
   });
   page = context.pages()[0] || (await context.newPage());
+  context.on('close', () => {
+    console.log('[bridge] browser closed by user');
+    page = null;
+    context = null;
+  });
   await page.goto(HOME, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
   await page.waitForTimeout(5000);
   await inject();
@@ -279,7 +284,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/shutdown') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true }));
-      await context?.close().catch(() => {});
+      // 先给浏览器 3 秒优雅关闭，超时也强制退出，避免端口被半死进程占住
+      await Promise.race([
+        Promise.resolve(context?.close()).catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 3000)),
+      ]);
       server.close();
       setTimeout(() => process.exit(0), 200);
       return;

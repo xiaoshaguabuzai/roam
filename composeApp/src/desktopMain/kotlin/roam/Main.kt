@@ -70,13 +70,18 @@ private fun openBridgeLogin() {
         return
     }
 
-    if (bridgeHealth()?.ready == true) {
+    val health = bridgeHealth()
+    if (health?.ready == true) {
         info(
             "FreeBridge 已在运行。\n\n" +
                 "请在它打开的浏览器窗口里扫码/手机号登录豆包，登录后回到 App 发消息即可。\n" +
                 "如果看不到浏览器窗口，请关闭 server.mjs 后重新点「登录」——网关需要用可见模式启动才能登录。",
         )
         return
+    }
+    if (health != null) {
+        // 进程在、浏览器已关（或页面异常）：先清理再以可见模式重启
+        stopExistingBridge()
     }
 
     val node = findNode()
@@ -190,9 +195,20 @@ private fun findNode(): String? {
     return null
 }
 
+private fun stopExistingBridge() {
+    if (bridgeHealth() == null) return
+    bridgeShutdown()
+    val deadline = System.currentTimeMillis() + 8000
+    while (System.currentTimeMillis() < deadline && bridgeHealth() != null) {
+        Thread.sleep(300)
+    }
+}
+
 /** 已登录过的用户：启动时静默拉起网关（可见模式，便于随时补登录），省掉手动开终端。 */
 private fun maybeAutoStartBridge() {
-    if (bridgeHealthy()) return
+    val existing = bridgeHealth()
+    if (existing?.ready == true) return
+    if (existing != null) stopExistingBridge()
     val dir = findBridgeDir() ?: return
     if (!File(dir, ".profile").isDirectory) return
     val node = findNode() ?: return
