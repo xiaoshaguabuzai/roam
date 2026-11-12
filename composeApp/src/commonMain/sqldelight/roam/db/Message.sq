@@ -1,0 +1,36 @@
+CREATE TABLE message (
+  id TEXT NOT NULL PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  tokens INTEGER NOT NULL,
+  meta TEXT,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX ix_message_session_seq ON message(session_id, seq);
+
+insert:
+INSERT INTO message(id, session_id, seq, role, content, tokens, meta, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+lastSeq:
+SELECT COALESCE(MAX(seq), 0) FROM message WHERE session_id = ?;
+
+bySession:
+SELECT * FROM message WHERE session_id = ? ORDER BY seq;
+
+afterSeq:
+SELECT * FROM message WHERE session_id = ? AND seq > ? ORDER BY seq;
+
+recent:
+SELECT * FROM message WHERE session_id = ? ORDER BY seq DESC LIMIT ?;
+
+sumTokensAfter:
+SELECT COALESCE(SUM(tokens), 0) FROM message WHERE session_id = ? AND seq > ?;
+
+search:
+SELECT * FROM message
+WHERE session_id = ? AND content LIKE '%' || ? || '%'
+ORDER BY seq DESC LIMIT ?;

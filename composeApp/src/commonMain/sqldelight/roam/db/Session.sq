@@ -1,0 +1,21 @@
+CREATE TABLE session (
+  id TEXT NOT NULL PRIMARY KEY,
+  title TEXT,
+  channel TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  state TEXT NOT NULL
+);
+
+create:
+INSERT INTO session(id, title, channel, created_at, updated_at, state)
+VALUES (?, ?, ?, ?, ?, ?);
+
+byId:
+SELECT * FROM session WHERE id = ?;
+
+touch:
+UPDATE session SET updated_at = ? WHERE id = ?;
+
+all:
+SELECT * FROM session ORDER BY updated_at DESC;

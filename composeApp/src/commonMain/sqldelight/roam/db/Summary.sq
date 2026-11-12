@@ -1,0 +1,37 @@
+CREATE TABLE summary (
+  id TEXT NOT NULL PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  level INTEGER NOT NULL,
+  start_seq INTEGER NOT NULL,
+  end_seq INTEGER NOT NULL,
+  content TEXT NOT NULL,
+  tokens INTEGER NOT NULL,
+  model TEXT,
+  superseded_by TEXT,
+  created_at INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX ux_summary_span ON summary(session_id, level, start_seq, end_seq);
+
+upsert:
+INSERT OR REPLACE INTO summary(id, session_id, level, start_seq, end_seq, content, tokens, model, superseded_by, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+latestActive:
+SELECT * FROM summary
+WHERE session_id = ? AND level = ? AND superseded_by IS NULL
+ORDER BY end_seq DESC LIMIT 1;
+
+activeByLevel:
+SELECT * FROM summary
+WHERE session_id = ? AND level = ? AND superseded_by IS NULL
+ORDER BY start_seq;
+
+maxCovered:
+SELECT COALESCE(MAX(end_seq), 0) FROM summary WHERE session_id = ? AND level = 1;
+
+supersede:
+UPDATE summary SET superseded_by = ? WHERE id = ?;
+
+deleteForSession:
+DELETE FROM summary WHERE session_id = ?;

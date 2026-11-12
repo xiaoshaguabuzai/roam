@@ -1,0 +1,19 @@
+CREATE TABLE fact (
+  id TEXT NOT NULL PRIMARY KEY,
+  session_id TEXT,
+  fact_key TEXT NOT NULL,
+  value TEXT NOT NULL,
+  confidence REAL NOT NULL,
+  source_msg_ids TEXT,
+  updated_at INTEGER NOT NULL
+);
+
+upsert:
+INSERT OR REPLACE INTO fact(id, session_id, fact_key, value, confidence, source_msg_ids, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+bySession:
+SELECT * FROM fact WHERE session_id = ? ORDER BY updated_at DESC LIMIT ?;
+
+deleteForSession:
+DELETE FROM fact WHERE session_id = ?;

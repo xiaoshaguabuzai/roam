@@ -1,0 +1,17 @@
+CREATE TABLE tool_audit (
+  id TEXT NOT NULL PRIMARY KEY,
+  session_id TEXT,
+  tool TEXT NOT NULL,
+  args_digest TEXT,
+  status TEXT NOT NULL,
+  duration_ms INTEGER NOT NULL,
+  egress INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+insert:
+INSERT INTO tool_audit(id, session_id, tool, args_digest, status, duration_ms, egress, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+bySession:
+SELECT * FROM tool_audit WHERE session_id = ? ORDER BY created_at DESC LIMIT ?;
