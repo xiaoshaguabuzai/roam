@@ -1,157 +1,159 @@
 # Roam
 
-**Compose Multiplatform 全栈 Agent**：Android 与桌面共用一套 UI/业务，用免费问答助手（豆包/千问等网页登录态）作答，
-记忆全部落本地 SQLite，手机能力以本地工具暴露。
+English | [简体中文](README.zh-CN.md)
 
-核心取舍：不花订阅费、不用按 token 计费的模型 API；代价是免费通道无 SLA、会触发风控与站点改版，
-所以整个方案围绕「**可路由、可降级、可审计**」设计。
+> A local-first, **zero model cost** AI agent for Android and desktop.
+> It answers through a free web assistant you already log into (Doubao / Qwen), keeps every memory in local SQLite,
+> and exposes phone capabilities as tools — all in one Compose Multiplatform codebase.
 
-## 技术栈
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.2.21-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Compose Multiplatform](https://img.shields.io/badge/Compose%20Multiplatform-1.9.3-4285F4)](https://www.jetbrains.com/compose-multiplatform/)
+[![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Desktop-lightgrey)](#)
 
-| 层 | 选型 |
+---
+
+## Why Roam
+
+- **No subscription, no per-token billing.** The model is a web assistant session you already have; the app never calls a paid API.
+- **Memory that belongs to you.** Raw messages are append-only in SQLite; summaries are derived and can be rebuilt at any time.
+- **One codebase, two platforms.** Compose Multiplatform shares `commonMain` between the Android app and the desktop app.
+- **Phone capabilities as tools.** Clipboard, apps, calendar and notifications are exposed to the agent with explicit permissions.
+- **Built to degrade.** Every free channel can break (risk control, site redesign). Failures fall back to a local stub, never to a frozen session.
+
+## Architecture
+
+```
+Android (Compose)  ─┐
+                    ├─ commonMain: AgentRuntime · MemoryEngine · ToolRegistry · UI
+Desktop (Compose)  ─┘        │
+                             ├─ WebViewDriver (Android): in-app WebView → doubao.com
+                             ├─ GatewayDriver (Desktop): HTTP → FreeBridge (Playwright)
+                             └─ SQLite via SQLDelight (AndroidSqliteDriver / JdbcSqliteDriver)
+
+FreeBridge (Node) ── Playwright + persistent profile ── doubao.com
+```
+
+Memory is layered: **L0** raw messages → **L1** segment summaries → **L2** rolling session summary → **L3** extracted facts.
+The context builder budgets and prioritises these layers instead of replaying the whole conversation every turn.
+
+## Screenshots
+
+| Mobile | Desktop |
 |---|---|
-| UI / 业务 | Compose Multiplatform 1.9.3（Android + Desktop，共享 `commonMain`） |
-| 语言 / 构建 | Kotlin 2.2.21 · AGP 8.13.2 · Gradle 8.14 · JDK 21 |
-| 本地记忆 | SQLDelight 2.4.1（Android `AndroidSqliteDriver` / 桌面 `JdbcSqliteDriver`） |
-| 免费通道 | WebViewDriver（手机）· GatewayDriver（桌面连 FreeBridge）· FreeApiDriver（官方免费额度） |
-| 对外工具协议 | 进程内 `ToolRegistry` 为核心；MCP 作为可选适配器（Kotlin SDK 0.9.0） |
+| ![Mobile](docs/evidence/phone-main.png) | ![Desktop](docs/evidence/desktop-real-answer.png) |
 
-## 目录
+The UI deliberately mirrors DeepSeek Harness: three-pane layout, `#f9fafb` sidebar, `#edf3fe` user bubble,
+`#4176e6` send button. See [docs/ui-spec.md](docs/ui-spec.md) for the full spec and known differences.
 
+## Quick start
+
+### Prerequisites
+
+| Tool | Version | Notes |
+|---|---|---|
+| JDK | 21 | portable build is installed by the setup script |
+| Android SDK | platform 36 | only needed for the Android target |
+| Node.js | 22 | only needed for the desktop bridge |
+| Microsoft Edge | recent | used by Playwright for the desktop channel |
+
+### 1. Toolchain (Windows, one-off)
+
+```powershell
+.\scripts\setup-toolchain.ps1 -Persist
+# reopen the terminal afterwards; JAVA_HOME / PATH will point at .tools
 ```
-composeApp/   CMP 应用：commonMain / androidMain / desktopMain
-bridge/       FreeBridge（Node/TS）：Playwright 持久登录态、OpenAI 兼容接口、MCP 代理（可选）
-docs/         技术方案、可行性报告、ADR
-spikes/       M0 可行性实验（网页探测、工具协议、MCP、记忆成本、CMP 冒烟）
-scripts/      便携工具链（JDK/Node/Gradle 一键就绪）
+
+The script installs portable JDK 21, Node 22 and Gradle into `.tools/` (git-ignored) and can write the user environment variables.
+
+### 2. Android
+
+```powershell
+.\gradlew.bat :composeApp:assembleDebug
+adb install -r composeApp\build\outputs\apk\debug\composeApp-debug.apk
 ```
 
-## 当前状态
+Open **Roam → model chip → 登录**, log in to Doubao once, then chat. The login cookie stays on the device.
 
-- [x] 技术方案 v1.1（CMP）：[docs/technical-design.md](docs/technical-design.md)
-- [x] M0 首轮验证：[docs/feasibility-report.md](docs/feasibility-report.md)
-- [x] MCP 适配器可行性（E3 通过）
-- [x] 记忆成本结构（E4：分层为全量的 9.9%）
-- [x] CMP 跨端冒烟（E7：9.82MB APK + 桌面窗口）
-- [ ] M0 收尾：登录态实测 30 条 + 真机端到端 20 条
-- [x] M1-1 CMP 工程骨架 + SQLDelight 记忆引擎 + 7 个单测
-- [x] M1-2 UI 高仿 DeepSeek Harness（三栏 / 记忆面板 / 流式模拟）
-- [x] M1-3 豆包网页通道：真实登录态 → 注入提问 → 流式抓取 → 落库
-- [x] M1-4 只读工具 + 工具循环（剪贴板 / 应用 / 日历 / 通知）
-- [ ] M2 通义/千问通道、Router 熔断、FreeBridge、MCP 适配器
+### 3. Desktop
 
-### 工具调用（M1-4）
+```powershell
+.\gradlew.bat :composeApp:run
+```
 
-![工具调用](docs/evidence/phone-tools.png)
+Click the model chip → **登录**. Roam starts FreeBridge in visible mode and opens a browser window;
+log in there once and the chip switches to `豆包网关`.
 
-- `ToolRegistry` + `AgentProtocol`（文本 JSON 协议，带修复与降级）+ `IntentRouter` 本地意图兜底。
-- 四个只读工具：`clipboard.read`、`apps.list`、`calendar.events`、`notifications.list`。
-- 循环：意图/模型给出 tool → 执行 → 结果回喂豆包 → 输出 `final`；最多 3 步，结果以工具卡片展示。
-- 真机验证：`apps.list`（截图）与 `calendar.events`（“未来 1 天没有日历事件”）均闭环。
-- 权限：日历在启动时请求 READ_CALENDAR；通知需在系统设置里开启「通知使用权」。
-- 现实约束：豆包并不总是遵守 JSON 协议，因此常见只读意图先本地命中工具，再让它组织自然语言回答。
-
-### 真实通道（M1-3）
-
-![豆包网页真实回答](docs/evidence/phone-real-answer.png)
-
-- `DoubaoWebDriver`：应用内常驻一个 WebView 打开豆包，复用登录 Cookie；
-  注入脚本写入输入框、点发送，轮询 `.message-list` 文本并去噪（时间行、搜索状态行、提问回显），
-  以「完整快照」回调给 UI 流式展示。
-- 失败路径明确：未登录 → 本地骨架 + 提示登录；验证码 → 报「需要手动验证」；超时 120s → 报错回退。
-- 已知限制：豆包改版会破坏选择器；虚拟列表/折叠卡片可能只抓到部分正文；暂未做 Markdown 渲染。
-
-### 桌面端（FreeBridge，M2 进行中）
-
-桌面没有 WebView，通过本机网关驱动浏览器里的豆包：
+Manual alternative:
 
 ```powershell
 cd bridge
 npm install --registry=https://registry.npmmirror.com
-node server.mjs      # 保持运行；首次登录见下
+node server.mjs
 ```
 
-更省事的方式：直接启动桌面 App，点输入框上方的「豆包网页 · 未登录」→ **登录**。
-App 会自动把网关切成可见模式并拉起浏览器，登录后通道自动变成「豆包网关」。
+See [bridge/README.md](bridge/README.md) for endpoints and troubleshooting.
+
+## Project layout
+
+```
+composeApp/          Compose Multiplatform app (commonMain / androidMain / desktopMain)
+  ├─ core/memory     layered memory engine, SQLDelight schema
+  ├─ core/tool       tool registry, text tool protocol, local intent router
+  ├─ core/assistant  AssistantDriver abstraction
+  ├─ ui              DSH-style UI, store, memory panel
+  └─ androidMain     WebView driver, phone tools, notification listener
+bridge/              FreeBridge: Playwright gateway for the desktop channel
+docs/                design, feasibility report, UI spec, ADRs, evidence
+spikes/              M0 experiments (web probe, protocol, MCP, memory, CMP)
+scripts/             portable toolchain and icon generator
+```
+
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [docs/technical-design.md](docs/technical-design.md) | architecture, data model, memory algorithm, roadmap |
+| [docs/feasibility-report.md](docs/feasibility-report.md) | measured M0 experiments and go/no-go |
+| [docs/ui-spec.md](docs/ui-spec.md) | DSH-style UI spec and mobile adaptation |
+| [docs/adr/](docs/adr) | key decisions (layered memory, free-channel drivers, CMP) |
+| [spikes/README.md](spikes/README.md) | how to reproduce every experiment |
+
+## Testing
 
 ```powershell
-.\gradlew.bat :composeApp:run
+.\gradlew.bat :composeApp:desktopTest    # 18 unit tests
+.\gradlew.bat :composeApp:lintDebug      # Android lint (0 errors)
 ```
 
-![桌面端真实回答](docs/evidence/desktop-real-answer.png)
+Covered: memory seq/compaction/rebuild/export, tool protocol parsing, local intent routing.
 
-- chip 三态：`豆包网关 · 未启动` / `豆包网关 · 未登录` / `豆包网关`（就绪）。
-- 已登录过（`bridge/.profile` 存在）时，启动 App 会自动拉起无头网关。
-- 桌面工具：`clipboard.read`；手机专属工具（应用/日历/通知）不注册。
-- 详见 [bridge/README.md](bridge/README.md)。
+## Known limitations
 
-### UI（按 DSH 高仿）
+- **Web automation is fragile.** Selectors break when Doubao ships a redesign; answers may include UI leftovers.
+- **No Markdown rendering yet.** Code blocks and lists are shown as plain text.
+- **One Doubao conversation per app launch.** Session binding is on the roadmap.
+- **Calendar / notifications need permissions.** Calendar asks at startup; notifications require “notification access” in system settings.
+- **Desktop needs a browser session.** The bridge profile (`bridge/.profile`) must be logged in once.
 
-![Roam UI](docs/evidence/ui-dsh-style.png)
+## Roadmap
 
-三栏布局、配色（`#f9fafb` 侧栏 / `#edf3fe` 用户气泡 / `#4176e6` 发送键）、
-对话/轨迹 tabs、工具卡片、底部状态行都对齐 DSH；规格与差异见 [docs/ui-spec.md](docs/ui-spec.md)。
+- [x] M0 feasibility: web channel, tool protocol, MCP SDK, memory cost, CMP spike
+- [x] M1: CMP shell, SQLDelight memory, Doubao WebView channel, read-only tools
+- [ ] M2: Qwen/Tongyi channels, router with circuit breaker, MCP adapter
+- [ ] M3: session binding, Markdown rendering, desktop packaging
 
-### 移动端（真机 1080×2400）
+## Security & privacy
 
-![手机主界面](docs/evidence/phone-main.png)
+- Everything is local-first: memory lives in a SQLite file on your device.
+- Login cookies stay in the app's WebView / `bridge/.profile`; both are git-ignored.
+- No paid API keys are used, and no telemetry is sent.
+- Tool calls are audited; sensitive clipboard/notification content is a deliberate design surface — review before enabling.
 
-- 记忆面板默认关闭，窄屏点右上角文件夹从右侧滑入（300dp）；系统栏 insets 与输入法已处理；
-  底部状态行在窄屏收敛为两项，不再折行。
-- **模型与登录**：输入区的模型 chip 打开登录面板，内置 WebView 打开豆包/千问网页登录，
-  Cookie 持久化在本机（[截图](docs/evidence/phone-login.png)）。
-- **应用图标**：深色圆角 `R` 自适应图标，脚本 `scripts/make-icons.ps1`。
+## Disclaimer
 
-### M1 已落地（记忆链路）
+Roam is a personal, self-hosted project. Driving a website's UI with automation may violate that site's terms of service;
+use it only with your own account and at your own risk. The project is not affiliated with ByteDance, Alibaba, DeepSeek or JetBrains.
 
-- `composeApp`：`commonMain` 放记忆引擎与 UI，`androidMain` / `desktopMain` 各自提供 SQLDelight 驱动。
-- 表结构：`session / message / summary / fact / tool_audit`，原文 append-only。
-- `MemoryEngine`：分段（L1）→ 合并（L2）→ 事实（L3）、上下文装配、可从 L0 重建、导出 Markdown。
-- 测试：`gradle :composeApp:desktopTest` → **7/7 通过**（序列、阈值触发、合并取代、重建幂等、预算约束、事实保留、导出）。
+## License
 
-## 快速开始
-
-本机没有系统级 JDK/Node/Gradle，全部使用 `.tools/` 便携版：
-
-```powershell
-.\scripts\setup-toolchain.ps1 -Persist   # 首次：安装便携 JDK/Node/Gradle 并写入用户环境变量
-# 重开终端（或 VS Code 窗口）后，JAVA_HOME / PATH 就会带上 .tools 里的 JDK
-.\gradlew.bat :composeApp:run
-```
-
-只影响当前终端（不写用户环境变量）时：
-
-```powershell
-.\scripts\setup-toolchain.ps1
-. .\.tools\env.ps1
-```
-
-> 如果新终端仍报 `JAVA_HOME is not set`：说明终端是在写环境变量之前启动的。
-> VS Code 需要**完全退出重开**（不是新开一个终端标签），或者在当前终端执行 `. .\.tools\env.ps1`。
-
-实验与复现方式见 [spikes/README.md](spikes/README.md)。
-
-## 构建与常见问题
-
-统一用仓库自带的 Gradle wrapper（8.14.3，`gradle-wrapper.properties` 指向腾讯镜像）：
-
-```powershell
-.\gradlew.bat :composeApp:desktopTest     # 记忆引擎单测（7 个）
-.\gradlew.bat :composeApp:assembleDebug   # Android APK
-.\gradlew.bat :composeApp:run             # 桌面窗口
-```
-
-> 不要用系统里其它版本的 Gradle（尤其 Gradle 9）：AGP 8.13 只在 8.13–8.14 上验证过。
-
-**Android Studio 报 `Could not resolve org.jetbrains:annotations:{strictly 13.0}`**
-
-这是 Gradle Kotlin DSL 把 `org.jetbrains:annotations` 钉在 embedded-Kotlin 的 13.0，
-而 AGP 8.13 的传递依赖要求 23.0.0，导致插件 classpath 解析失败。本项目做了两层处理：
-
-1. **仓库自带 wrapper**：Studio 里 `Settings → Build, Execution, Deployment → Build Tools → Gradle`，
-   把 "Use Gradle from" 设为 `gradle-wrapper.properties file`，然后重新 Sync；
-2. **根 `build.gradle.kts` 兜底**：对所有子工程的 buildscript classpath 强制
-   `org.jetbrains:annotations:23.0.0`（向下兼容）。
-
-Sync 前建议先 `.\gradlew.bat --stop`，并在报错信息里确认 Gradle 版本是 **8.14.3**。
-若仍失败，把 `gradle-wrapper.properties` 的 `distributionUrl` 换回官方源再试。
+Not chosen yet. Add the license you want (MIT / Apache-2.0 are common for this kind of project) before distributing.
