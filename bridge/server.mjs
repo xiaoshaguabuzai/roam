@@ -93,6 +93,7 @@ const INSTALL_JS = String.raw`
       text = text.replace(/内容由\s*AI\s*生成[^\n]*/g, '');
       // 豆包底部的推广条与「猜你想问」建议，不属于回答正文
       text = text.split('下载豆包电脑版')[0];
+      text = text.replace(/\s*(免费)?\s*(你能做些什么|你是谁|你是怎么工作的)[^?？]*[?？].*$/s, '');
       for (let k = 0; k < 5; k++) {
         const before = text;
         text = text

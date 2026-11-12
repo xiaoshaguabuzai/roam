@@ -62,7 +62,7 @@ fun main(args: Array<String>) {
     }
 }
 
-/** 桌面端的登录发生在 FreeBridge 的持久 profile 里：点登录 = 确保网关以「可见模式」运行。 */
+/** 桌面端的登录发生在 FreeBridge 的持久 profile 里：点登录 = 确保「可见模式」网关在跑。 */
 private fun openBridgeLogin() {
     val bridgeDir = findBridgeDir()
     if (bridgeDir == null) {
@@ -70,11 +70,13 @@ private fun openBridgeLogin() {
         return
     }
 
-    val health = bridgeHealth()
-    if (health?.ready == true) {
-        // 点「登录」总是切到可见模式：无头页面无法登录，而且登录态可能已失效
-        bridgeShutdown()
-        Thread.sleep(900)
+    if (bridgeHealth()?.ready == true) {
+        info(
+            "FreeBridge 已在运行。\n\n" +
+                "请在它打开的浏览器窗口里扫码/手机号登录豆包，登录后回到 App 发消息即可。\n" +
+                "如果看不到浏览器窗口，请关闭 server.mjs 后重新点「登录」——网关需要用可见模式启动才能登录。",
+        )
+        return
     }
 
     val node = findNode()
@@ -88,24 +90,44 @@ private fun openBridgeLogin() {
     }
 
     val log = File(bridgeDir, "server.log")
-    val result = runCatching {
+    val started = runCatching {
         ProcessBuilder(node, "server.mjs")
             .directory(bridgeDir)
             .redirectErrorStream(true)
             .redirectOutput(ProcessBuilder.Redirect.appendTo(log))
             .apply { environment()["ROAM_HEADLESS"] = "0" }
             .start()
-    }
-    result.onFailure {
+    }.onFailure {
         info("启动 FreeBridge 失败：${it.message}\n\n可以手动执行：cd bridge; node server.mjs")
         return
+    }.isSuccess
+
+    if (!started) return
+
+    // 等它真正就绪再提示，避免用户在服务还没起来时就去点
+    val deadline = System.currentTimeMillis() + 20_000
+    var ready = false
+    while (System.currentTimeMillis() < deadline) {
+        if (bridgeHealth()?.ready == true) {
+            ready = true
+            break
+        }
+        Thread.sleep(500)
     }
-    info(
-        "已启动 FreeBridge（可见模式，日志：bridge/server.log）。\n\n" +
-            "请在弹出的浏览器窗口里扫码/手机号登录豆包。\n" +
-            "登录后回到 App，通道会自动变成「豆包网关」。\n\n" +
-            "如果回答里出现「登录态已失效」，再点一次登录即可。",
-    )
+
+    if (ready) {
+        info(
+            "已启动 FreeBridge（可见模式，日志：bridge/server.log）。\n\n" +
+                "请在弹出的浏览器窗口里扫码/手机号登录豆包。\n" +
+                "登录后回到 App，通道会自动变成「豆包网关」。",
+        )
+    } else {
+        info(
+            "FreeBridge 启动超时。\n\n" +
+                "请查看 bridge/server.log；常见原因是端口 8787 被占用或浏览器启动失败。\n" +
+                "可以手动执行：cd bridge; node server.mjs",
+        )
+    }
 }
 
 private data class BridgeHealth(val ready: Boolean, val loggedIn: Boolean)
@@ -168,7 +190,7 @@ private fun findNode(): String? {
     return null
 }
 
-/** 已登录过的用户：启动时静默拉起网关（无头），省掉手动开终端。 */
+/** 已登录过的用户：启动时静默拉起网关（可见模式，便于随时补登录），省掉手动开终端。 */
 private fun maybeAutoStartBridge() {
     if (bridgeHealthy()) return
     val dir = findBridgeDir() ?: return
@@ -179,7 +201,7 @@ private fun maybeAutoStartBridge() {
             .directory(dir)
             .redirectErrorStream(true)
             .redirectOutput(ProcessBuilder.Redirect.appendTo(File(dir, "server.log")))
-            .apply { environment()["ROAM_HEADLESS"] = "1" }
+            .apply { environment()["ROAM_HEADLESS"] = "0" }
             .start()
     }
 }
