@@ -79,3 +79,13 @@ compose.desktop {
         mainClass = "roam.MainKt"
     }
 }
+
+// IDE（IntelliJ / Android Studio）的 KMP 运行配置走的是 Kotlin 插件的 desktopRun，
+// 它默认没有 mainClass，会报 "No main class specified"。这里补齐，使两种入口一致。
+// 该任务由 Kotlin 插件延迟注册，因此用 configureEach + 名称匹配，避免触发 API 内部类。
+tasks.configureEach {
+    if (name == "desktopRun" && this is JavaExec) {
+        workingDir = rootProject.projectDir
+        doFirst { mainClass.set("roam.MainKt") }
+    }
+}
