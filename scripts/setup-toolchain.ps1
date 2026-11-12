@@ -1,6 +1,9 @@
 ﻿# Roam 本机便携工具链（幂等）
-# 用法：在仓库根目录执行  .\.tools\setup-toolchain.ps1
+# 用法：在仓库根目录执行  .\scripts\setup-toolchain.ps1 [-Persist]
+#   -Persist：把 JAVA_HOME / ANDROID_HOME / PATH 写入当前用户环境变量（新终端生效）
 # 说明：本机没有系统级 JDK / Node / Gradle，全部放在 .tools/ 下（已 gitignore）。
+
+param([switch]$Persist)
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot          # E:\roam
@@ -66,5 +69,22 @@ $gradleLine = (cmd /c "`"$gradle\bin\gradle.bat`" --version 2>&1" | Select-Strin
 Write-Host ('java  : ' + $javaLine)
 Write-Host ('node  : ' + $nodeLine)
 Write-Host ('gradle: ' + $gradleLine)
+
+if ($Persist) {
+    [Environment]::SetEnvironmentVariable('JAVA_HOME', $jdk, 'User')
+    [Environment]::SetEnvironmentVariable('ANDROID_HOME', $sdk, 'User')
+    [Environment]::SetEnvironmentVariable('ANDROID_SDK_ROOT', $sdk, 'User')
+
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    if ([string]::IsNullOrWhiteSpace($userPath)) { $userPath = '' }
+    $entries = $userPath -split ';' | Where-Object { $_ -and $_.Trim() -ne '' }
+    $jdkBin = Join-Path $jdk 'bin'
+    if ($entries -notcontains $jdkBin) {
+        $newPath = if ($userPath.Trim() -eq '') { $jdkBin } else { "$jdkBin;$userPath" }
+        [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
+        Write-Host "[persist] 已把 $jdkBin 加入用户 PATH"
+    }
+    Write-Host '[persist] JAVA_HOME / ANDROID_HOME 已写入用户环境变量，重开终端后生效'
+}
 
 exit 0

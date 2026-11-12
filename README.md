@@ -114,9 +114,20 @@ App 会自动把网关切成可见模式并拉起浏览器，登录后通道自�
 本机没有系统级 JDK/Node/Gradle，全部使用 `.tools/` 便携版：
 
 ```powershell
-.\scripts\setup-toolchain.ps1     # 幂等：缺什么装什么，并生成 .tools\env.ps1
-. .\.tools\env.ps1               # 当前会话生效（JAVA_HOME / PATH / ANDROID_HOME）
+.\scripts\setup-toolchain.ps1 -Persist   # 首次：安装便携 JDK/Node/Gradle 并写入用户环境变量
+# 重开终端（或 VS Code 窗口）后，JAVA_HOME / PATH 就会带上 .tools 里的 JDK
+.\gradlew.bat :composeApp:run
 ```
+
+只影响当前终端（不写用户环境变量）时：
+
+```powershell
+.\scripts\setup-toolchain.ps1
+. .\.tools\env.ps1
+```
+
+> 如果新终端仍报 `JAVA_HOME is not set`：说明终端是在写环境变量之前启动的。
+> VS Code 需要**完全退出重开**（不是新开一个终端标签），或者在当前终端执行 `. .\.tools\env.ps1`。
 
 实验与复现方式见 [spikes/README.md](spikes/README.md)。
 
