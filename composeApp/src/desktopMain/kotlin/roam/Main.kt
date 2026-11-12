@@ -72,11 +72,7 @@ private fun openBridgeLogin() {
 
     val health = bridgeHealth()
     if (health?.ready == true) {
-        if (health.loggedIn) {
-            info("FreeBridge 已登录，可以直接提问了。")
-            return
-        }
-        // 无头模式没法登录：先关掉，再以可见模式重启
+        // 点「登录」总是切到可见模式：无头页面无法登录，而且登录态可能已失效
         bridgeShutdown()
         Thread.sleep(900)
     }
@@ -104,7 +100,12 @@ private fun openBridgeLogin() {
         info("启动 FreeBridge 失败：${it.message}\n\n可以手动执行：cd bridge; node server.mjs")
         return
     }
-    info("已启动 FreeBridge（可见模式，日志：bridge/server.log）。\n\n请在弹出的浏览器窗口里扫码/手机号登录豆包。\n登录后回到 App，通道会自动变成「豆包网关」。")
+    info(
+        "已启动 FreeBridge（可见模式，日志：bridge/server.log）。\n\n" +
+            "请在弹出的浏览器窗口里扫码/手机号登录豆包。\n" +
+            "登录后回到 App，通道会自动变成「豆包网关」。\n\n" +
+            "如果回答里出现「登录态已失效」，再点一次登录即可。",
+    )
 }
 
 private data class BridgeHealth(val ready: Boolean, val loggedIn: Boolean)

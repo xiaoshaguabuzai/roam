@@ -141,9 +141,27 @@ async function loggedIn() {
   if (!context) return false;
   const cookies = await context.cookies('https://www.doubao.com').catch(() => []);
   const hasSession = cookies.some((c) => ['sessionid', 'sessionid_ss', 'sid_tt'].includes(c.name));
+  if (!hasSession) return false;
+  if (!page || page.isClosed()) return true;
   // 豆包登出后 URL 会带 from_logout，即使 cookie 仍在也不能算就绪
-  const loggedOut = page && !page.isClosed() && page.url().includes('from_logout');
-  return hasSession && !loggedOut;
+  if (page.url().includes('from_logout')) return false;
+  // 询问进行中不做页面探测，避免和轮询抢 evaluate
+  if (busy) return true;
+
+  const state = await withTimeout(
+    page.evaluate(() => {
+      const body = document.body ? document.body.innerText : '';
+      if (window.__roamBlocked && window.__roamBlocked() === 'login') return 'login';
+      if (/扫码登录|手机号登录|登录后继续|请先登录/.test(body)) return 'login';
+      const input = Array.prototype.slice
+        .call(document.querySelectorAll('[contenteditable="true"], textarea'))
+        .some((e) => e.offsetParent !== null && e.getBoundingClientRect().width > 80);
+      return input ? 'ok' : 'login';
+    }),
+    3000,
+    'probe-timeout',
+  ).catch(() => 'ok');
+  return state === 'ok';
 }
 
 function withTimeout(promise, ms, message) {
@@ -201,7 +219,13 @@ async function ask(question, prompt, onDelta) {
     // 豆包可能在提问后整页刷新，注入脚本会丢；每轮幂等补注入
     await inject();
     const blocked = await p.evaluate(() => (window.__roamBlocked ? window.__roamBlocked() : '')).catch(() => '');
-    if (blocked) throw new Error(blocked === 'captcha' ? '页面要求验证码' : '页面要求登录');
+    if (blocked) {
+      throw new Error(
+        blocked === 'captcha'
+          ? '页面要求验证码：请点「登录」打开浏览器完成验证'
+          : '登录态已失效：请点输入框上方的模型入口重新登录',
+      );
+    }
 
     const state = await p
       .evaluate(() => {
