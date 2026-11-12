@@ -82,11 +82,14 @@ class RoamStore(
 
     fun setMemory(open: Boolean) { showMemory = open }
 
-    /** 输入框上方的通道标签：本地骨架 / 豆包网页（已登录/未登录）。 */
-    fun channelLabel(): String = when {
-        driver == null -> "本地骨架 · 未接模型"
-        driver.status() == DriverStatus.READY -> driver.label
-        else -> "${driver.label} · 未登录"
+    /** 输入框上方的通道标签：本地骨架 / 豆包网页（就绪/未登录/未启动）。 */
+    fun channelLabel(): String {
+        val active = driver ?: return "本地骨架 · 未接模型"
+        return when (active.status()) {
+            DriverStatus.READY -> active.label
+            DriverStatus.NEED_LOGIN -> "${active.label} · 未登录"
+            DriverStatus.UNAVAILABLE -> "${active.label} · 未启动"
+        }
     }
 
     fun hasChannel(): Boolean = driver != null
@@ -201,7 +204,7 @@ class RoamStore(
                 if (!isStreaming) return@ask
                 streamingText = null
                 isStreaming = false
-                engine.appendAssistant(sid, "豆包网页通道出错：$err")
+                engine.appendAssistant(sid, "${driver?.label ?: "通道"} 通道出错：$err")
                 push("通道", "失败：$err")
                 refresh()
             },

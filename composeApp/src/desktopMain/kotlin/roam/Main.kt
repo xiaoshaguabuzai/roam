@@ -10,7 +10,10 @@ import roam.app.App
 import roam.core.memory.ExtractiveSummarizer
 import roam.core.memory.MemoryConfig
 import roam.core.memory.MemoryEngine
+import roam.core.tool.ToolRegistry
 import roam.db.RoamDatabase
+import roam.desktop.DesktopClipboardTool
+import roam.desktop.GatewayDriver
 import java.io.File
 import java.util.Properties
 
@@ -35,6 +38,9 @@ fun main(args: Array<String>) {
     }
 
     application {
+        val gateway = GatewayDriver()
+        val tools = ToolRegistry(listOf(DesktopClipboardTool()))
+
         Window(
             onCloseRequest = {
                 driver.close()
@@ -43,10 +49,21 @@ fun main(args: Array<String>) {
             title = "Roam",
             state = rememberWindowState(width = 1280.dp, height = 820.dp),
         ) {
-            App(engine, null, null) { target ->
-                runCatching { java.awt.Desktop.getDesktop().browse(java.net.URI(target.url)) }
+            App(engine, gateway, tools) {
+                openBridgeLogin()
             }
         }
+    }
+}
+
+/** 桌面端的登录发生在 FreeBridge 的持久 profile 里，所以这里启动 bridge/login.mjs。 */
+private fun openBridgeLogin() {
+    val bridgeDir = listOf(File("bridge"), File("../bridge")).firstOrNull { it.isDirectory } ?: return
+    val node = System.getenv("ROAM_NODE")?.takeIf { it.isNotBlank() } ?: "node"
+    runCatching {
+        ProcessBuilder(node, "login.mjs").directory(bridgeDir).inheritIO().start()
+    }.onFailure {
+        println("[roam] 无法启动 FreeBridge 登录页：${it.message}；请手动执行 node bridge/login.mjs")
     }
 }
 

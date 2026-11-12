@@ -1,0 +1,13 @@
+{
+  "name": "roam-bridge",
+  "private": true,
+  "type": "module",
+  "description": "FreeBridge：桌面端豆包/千问网页通道网关（Playwright 持久登录态）",
+  "scripts": {
+    "start": "node server.mjs",
+    "login": "node login.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.56.1"
+  }
+}

@@ -61,6 +61,30 @@ scripts/      便携工具链（JDK/Node/Gradle 一键就绪）
 - 失败路径明确：未登录 → 本地骨架 + 提示登录；验证码 → 报「需要手动验证」；超时 120s → 报错回退。
 - 已知限制：豆包改版会破坏选择器；虚拟列表/折叠卡片可能只抓到部分正文；暂未做 Markdown 渲染。
 
+### 桌面端（FreeBridge，M2 进行中）
+
+桌面没有 WebView，通过本机网关驱动浏览器里的豆包：
+
+```powershell
+cd bridge
+npm install --registry=https://registry.npmmirror.com
+node login.mjs        # 首次登录；执行前先停掉 server
+node server.mjs       # 保持运行
+
+# 另开终端
+.\gradlew.bat :composeApp:run
+```
+
+![桌面端网关](docs/evidence/desktop-gateway.png)
+
+- chip 三态：`豆包网关 · 未启动` / `豆包网关 · 未登录` / `豆包网关`（就绪）。
+- 网关每 8 秒刷新 `/health`，登录后无需重启 App。
+- 桌面工具：`clipboard.read`；手机专属工具（应用/日历/通知）不注册。
+- 详见 [bridge/README.md](bridge/README.md)。
+
+> 注意：桌面端能启动、能连上网关并正确显示状态；真正问答需要你在 `bridge/.profile` 里登录一次豆包。
+> 我这边验证到「未登录」状态与错误回退，登录后的抓取沿用手机端同一套选择器，尚未在桌面 profile 里实测。
+
 ### UI（按 DSH 高仿）
 
 ![Roam UI](docs/evidence/ui-dsh-style.png)

@@ -56,6 +56,7 @@ bridge/node_modules/
 spikes/**/.auth/
 spikes/**/out/
 spikes/**/data/
+bridge/.profile/
 *.cookie
 cookies.txt
 storageState.json
