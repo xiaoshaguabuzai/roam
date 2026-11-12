@@ -115,6 +115,6 @@
 
 ## 10. 验收方式
 
-- 桌面：`.\gradlew.bat :composeApp:run --args="--demo"`，比对 `docs/evidence/ui-dsh-style.png`
+- 桌面：`.\gradlew.bat :composeApp:run`，比对 `docs/evidence/ui-dsh-style.png`
 - 真机：`.\gradlew.bat :composeApp:assembleDebug` + `adb install -r`，
   比对 `docs/evidence/phone-main.png`、`phone-memory.png`、`phone-login.png`
