@@ -77,15 +77,30 @@ const INSTALL_JS = String.raw`
       var text = '';
       if (list) {
         text = (list.textContent || '').trim();
-        var idx = q ? text.lastIndexOf(q) : -1;
-        if (idx >= 0) text = text.slice(idx + q.length).trim();
-        else if (p && text.indexOf(p) >= 0) text = text.slice(text.indexOf(p) + p.length).trim();
+        // 优先按完整提示词截断（最干净）；提示词被换行改写时退回按问题截断
+        var pi = p ? text.lastIndexOf(p) : -1;
+        if (pi >= 0) {
+          text = text.slice(pi + p.length).trim();
+        } else {
+          var idx = q ? text.lastIndexOf(q) : -1;
+          if (idx >= 0) text = text.slice(idx + q.length).trim();
+        }
       }
       text = text.replace(/(正在搜索|找到\s*\d+\s*篇资料|正在生成)\s*/g, '');
       text = text.replace(/(今天|昨天|前天)\s*\d{1,2}:\d{2}\s*/g, '');
       text = text.replace(/搜索\s*\d+\s*个关键词[，,]\s*参考\s*\d+\s*篇资料\s*/g, '');
       text = text.replace(/展开全部|收起|复制|分享|重新生成|点赞|点踩/g, '');
       text = text.replace(/内容由\s*AI\s*生成[^\n]*/g, '');
+      // 豆包底部的推广条与「猜你想问」建议，不属于回答正文
+      text = text.split('下载豆包电脑版')[0];
+      for (let k = 0; k < 5; k++) {
+        const before = text;
+        text = text
+          .replace(/\s*((Can|Could|Would|Do|Are|What|How|Why|Who|Where|When)\b[^?]{0,80}\?)\s*$/i, '')
+          .replace(/\s*你能[^？]{0,40}？\s*$/, '')
+          .trim();
+        if (text === before) break;
+      }
       if (p) text = text.replace(p, '');
       return text.trim();
     } catch (e) { return ''; }
@@ -183,6 +198,8 @@ async function ask(question, prompt, onDelta) {
   const started = Date.now();
   while (Date.now() - started < 120000) {
     await p.waitForTimeout(500);
+    // 豆包可能在提问后整页刷新，注入脚本会丢；每轮幂等补注入
+    await inject();
     const blocked = await p.evaluate(() => (window.__roamBlocked ? window.__roamBlocked() : '')).catch(() => '');
     if (blocked) throw new Error(blocked === 'captcha' ? '页面要求验证码' : '页面要求登录');
 
@@ -231,6 +248,15 @@ const server = http.createServer(async (req, res) => {
       const ready = !!(page && !page.isClosed());
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ready, busy, loggedIn: await loggedIn(), url: page ? page.url() : null }));
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/shutdown') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true }));
+      await context?.close().catch(() => {});
+      server.close();
+      setTimeout(() => process.exit(0), 200);
       return;
     }
 

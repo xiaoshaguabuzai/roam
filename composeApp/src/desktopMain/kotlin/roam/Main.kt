@@ -6,6 +6,9 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import roam.app.App
 import roam.core.memory.ExtractiveSummarizer
 import roam.core.memory.MemoryConfig
@@ -37,6 +40,9 @@ fun main(args: Array<String>) {
         engine.createSession("default", "默认会话", "desktop")
     }
 
+    // 已登录过（profile 存在）就静默拉起网关；首次使用由「登录」按钮引导
+    maybeAutoStartBridge()
+
     application {
         val gateway = GatewayDriver()
         val tools = ToolRegistry(listOf(DesktopClipboardTool()))
@@ -56,14 +62,124 @@ fun main(args: Array<String>) {
     }
 }
 
-/** 桌面端的登录发生在 FreeBridge 的持久 profile 里，所以这里启动 bridge/login.mjs。 */
+/** 桌面端的登录发生在 FreeBridge 的持久 profile 里：点登录 = 确保网关以「可见模式」运行。 */
 private fun openBridgeLogin() {
-    val bridgeDir = listOf(File("bridge"), File("../bridge")).firstOrNull { it.isDirectory } ?: return
-    val node = System.getenv("ROAM_NODE")?.takeIf { it.isNotBlank() } ?: "node"
+    val bridgeDir = findBridgeDir()
+    if (bridgeDir == null) {
+        info("找不到 bridge 目录。\n请在仓库根目录运行桌面 App，或手动执行：cd bridge; npm install; node server.mjs")
+        return
+    }
+
+    val health = bridgeHealth()
+    if (health?.ready == true) {
+        if (health.loggedIn) {
+            info("FreeBridge 已登录，可以直接提问了。")
+            return
+        }
+        // 无头模式没法登录：先关掉，再以可见模式重启
+        bridgeShutdown()
+        Thread.sleep(900)
+    }
+
+    val node = findNode()
+    if (node == null) {
+        info(
+            "没有找到 node。\n\n" +
+                "请安装 Node 22，或把 node 加入 PATH，或设置环境变量 ROAM_NODE 指向 node.exe。\n" +
+                "然后手动执行：\n  cd bridge\n  node login.mjs\n  node server.mjs",
+        )
+        return
+    }
+
+    val log = File(bridgeDir, "server.log")
+    val result = runCatching {
+        ProcessBuilder(node, "server.mjs")
+            .directory(bridgeDir)
+            .redirectErrorStream(true)
+            .redirectOutput(ProcessBuilder.Redirect.appendTo(log))
+            .apply { environment()["ROAM_HEADLESS"] = "0" }
+            .start()
+    }
+    result.onFailure {
+        info("启动 FreeBridge 失败：${it.message}\n\n可以手动执行：cd bridge; node server.mjs")
+        return
+    }
+    info("已启动 FreeBridge（可见模式，日志：bridge/server.log）。\n\n请在弹出的浏览器窗口里扫码/手机号登录豆包。\n登录后回到 App，通道会自动变成「豆包网关」。")
+}
+
+private data class BridgeHealth(val ready: Boolean, val loggedIn: Boolean)
+
+private fun bridgeHealth(): BridgeHealth? = runCatching {
+    val conn = java.net.URL("http://127.0.0.1:8787/health").openConnection() as java.net.HttpURLConnection
+    conn.connectTimeout = 800
+    conn.readTimeout = 1200
+    val text = conn.inputStream.bufferedReader().readText()
+    val obj = kotlinx.serialization.json.Json.parseToJsonElement(text).jsonObject
+    BridgeHealth(
+        ready = obj["ready"]?.jsonPrimitive?.booleanOrNull ?: false,
+        loggedIn = obj["loggedIn"]?.jsonPrimitive?.booleanOrNull ?: false,
+    )
+}.getOrNull()
+
+private fun bridgeShutdown() {
     runCatching {
-        ProcessBuilder(node, "login.mjs").directory(bridgeDir).inheritIO().start()
-    }.onFailure {
-        println("[roam] 无法启动 FreeBridge 登录页：${it.message}；请手动执行 node bridge/login.mjs")
+        val conn = java.net.URL("http://127.0.0.1:8787/shutdown").openConnection() as java.net.HttpURLConnection
+        conn.requestMethod = "POST"
+        conn.connectTimeout = 800
+        conn.readTimeout = 1500
+        conn.doOutput = true
+        conn.outputStream.use { it.write(ByteArray(0)) }
+        conn.inputStream.close()
+    }
+}
+
+private fun bridgeHealthy(): Boolean = bridgeHealth()?.ready == true
+
+private fun info(message: String) {
+    javax.swing.JOptionPane.showMessageDialog(null, message, "Roam", javax.swing.JOptionPane.INFORMATION_MESSAGE)
+}
+
+private fun findBridgeDir(): File? {
+    var dir: File? = File(System.getProperty("user.dir")).absoluteFile
+    repeat(6) {
+        val candidates = listOf(File(dir, "bridge"), File(dir, "composeApp/bridge"))
+        candidates.firstOrNull { File(it, "server.mjs").isFile }?.let { return it }
+        dir = dir?.parentFile
+    }
+    return null
+}
+
+private fun findNode(): String? {
+    System.getenv("ROAM_NODE")?.takeIf { it.isNotBlank() && File(it).canExecute() }?.let { return it }
+
+    System.getenv("PATH")
+        ?.split(File.pathSeparator)
+        ?.map { File(it, "node.exe") }
+        ?.firstOrNull { it.canExecute() }
+        ?.let { return it.absolutePath }
+
+    var dir: File? = File(System.getProperty("user.dir")).absoluteFile
+    repeat(6) {
+        val candidate = File(dir, ".tools/node/node.exe")
+        if (candidate.canExecute()) return candidate.absolutePath
+        dir = dir?.parentFile
+    }
+    return null
+}
+
+/** 已登录过的用户：启动时静默拉起网关（无头），省掉手动开终端。 */
+private fun maybeAutoStartBridge() {
+    if (bridgeHealthy()) return
+    val dir = findBridgeDir() ?: return
+    if (!File(dir, ".profile").isDirectory) return
+    val node = findNode() ?: return
+    runCatching {
+        ProcessBuilder(node, "server.mjs")
+            .directory(dir)
+            .redirectErrorStream(true)
+            .redirectOutput(ProcessBuilder.Redirect.appendTo(File(dir, "server.log")))
+            .apply { environment()["ROAM_HEADLESS"] = "1" }
+            .start()
     }
 }
 

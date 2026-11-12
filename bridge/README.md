@@ -9,17 +9,12 @@ Android 端不需要它（手机用内置 WebView 直驱）。
 cd bridge
 npm install --registry=https://registry.npmmirror.com
 
-# 1) 首次登录（此时必须先停掉 server，否则 profile 被占用）
-node login.mjs
-#    在弹出的 Edge 窗口里扫码/手机号登录豆包，完成后回终端按回车
+# 方式一：桌面 App 里点「登录」（推荐）
+#   App 会调用 /shutdown 关掉无头网关，再以可见模式启动 browser，直接登录即可
 
-# 2) 启动网关
+# 方式二：手动
+node login.mjs   # 先停掉 server；登录完回车
 node server.mjs
-#    [bridge] listening on http://127.0.0.1:8787
-
-# 3) 另开终端跑桌面 App
-cd ..
-.\gradlew.bat :composeApp:run
 ```
 
 桌面 App 会自动轮询 `/health`（每 8 秒），输入框上方的 chip 会显示：
@@ -36,6 +31,7 @@ cd ..
 |---|---|---|
 | GET | `/health` | `{ ready, busy, loggedIn, url }` |
 | POST | `/ask` | body `{ prompt, question }`，返回 NDJSON：`{"delta":"..."}` … `{"done":true,"text":"..."}` 或 `{"error":"..."}` |
+| POST | `/shutdown` | 关闭浏览器并退出，供桌面 App 切换「无头 ↔ 可见」 |
 
 ## 环境变量
 

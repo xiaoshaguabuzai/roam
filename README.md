@@ -68,22 +68,22 @@ scripts/      便携工具链（JDK/Node/Gradle 一键就绪）
 ```powershell
 cd bridge
 npm install --registry=https://registry.npmmirror.com
-node login.mjs        # 首次登录；执行前先停掉 server
-node server.mjs       # 保持运行
+node server.mjs      # 保持运行；首次登录见下
+```
 
-# 另开终端
+更省事的方式：直接启动桌面 App，点输入框上方的「豆包网页 · 未登录」→ **登录**。
+App 会自动把网关切成可见模式并拉起浏览器，登录后通道自动变成「豆包网关」。
+
+```powershell
 .\gradlew.bat :composeApp:run
 ```
 
-![桌面端网关](docs/evidence/desktop-gateway.png)
+![桌面端真实回答](docs/evidence/desktop-real-answer.png)
 
 - chip 三态：`豆包网关 · 未启动` / `豆包网关 · 未登录` / `豆包网关`（就绪）。
-- 网关每 8 秒刷新 `/health`，登录后无需重启 App。
+- 已登录过（`bridge/.profile` 存在）时，启动 App 会自动拉起无头网关。
 - 桌面工具：`clipboard.read`；手机专属工具（应用/日历/通知）不注册。
 - 详见 [bridge/README.md](bridge/README.md)。
-
-> 注意：桌面端能启动、能连上网关并正确显示状态；真正问答需要你在 `bridge/.profile` 里登录一次豆包。
-> 我这边验证到「未登录」状态与错误回退，登录后的抓取沿用手机端同一套选择器，尚未在桌面 profile 里实测。
 
 ### UI（按 DSH 高仿）
 

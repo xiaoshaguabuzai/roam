@@ -82,6 +82,10 @@ class GatewayDriver(private val baseUrl: String = "http://127.0.0.1:8787") : Ass
                 conn.outputStream.use { it.write(body.toByteArray()) }
 
                 if (conn.responseCode != 200) {
+                    if (conn.responseCode == 409) {
+                        ui { onError("网关正忙（上一轮还没结束），请稍后再试") }
+                        return@Thread
+                    }
                     val err = conn.errorStream?.bufferedReader()?.readText().orEmpty()
                     ui { onError("网关返回 ${conn.responseCode}：${err.take(120)}") }
                     return@Thread
