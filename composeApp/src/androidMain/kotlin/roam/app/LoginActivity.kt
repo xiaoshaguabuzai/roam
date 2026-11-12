@@ -58,7 +58,7 @@ class LoginActivity : ComponentActivity() {
             text = title
             textSize = 15f
             setPadding(32, 0, 0, 0)
-            setTextColor(Color.parseColor("#0F1115"))
+            setTextColor(Color.rgb(15, 17, 21))
         }
         bar.addView(back)
         bar.addView(label)

@@ -54,8 +54,15 @@ foreach ($d in $densities) {
     $c.g.FillPath($bg, $path)
     Draw-R $c.g $d.legacy 0.56 0
     $c.bmp.Save((Join-Path $dir 'ic_launcher.png'), [System.Drawing.Imaging.ImageFormat]::Png)
-    $c.bmp.Save((Join-Path $dir 'ic_launcher_round.png'), [System.Drawing.Imaging.ImageFormat]::Png)
     $c.g.Dispose(); $c.bmp.Dispose()
+
+    # round icon：圆形底，避免 lint IconLauncherShape
+    $rnd = New-Canvas $d.legacy
+    $circle = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 15, 17, 21))
+    $rnd.g.FillEllipse($circle, 0, 0, $d.legacy, $d.legacy)
+    Draw-R $rnd.g $d.legacy 0.56 0
+    $rnd.bmp.Save((Join-Path $dir 'ic_launcher_round.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+    $rnd.g.Dispose(); $rnd.bmp.Dispose()
 
     # adaptive foreground: transparent, R inside the 72/108 safe zone
     $f = New-Canvas $d.fg
@@ -64,17 +71,22 @@ foreach ($d in $densities) {
     $f.g.Dispose(); $f.bmp.Dispose()
 }
 
-$v26 = Join-Path $res 'mipmap-anydpi-v26'
-New-Item -ItemType Directory -Force -Path $v26 | Out-Null
+# minSdk = 26，所以不需要 -v26 限定符
+$anydpi = Join-Path $res 'mipmap-anydpi'
+New-Item -ItemType Directory -Force -Path $anydpi | Out-Null
 $adaptive = @'
 <?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/ic_launcher_background" />
     <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_foreground" />
 </adaptive-icon>
 '@
-Set-Content -Path (Join-Path $v26 'ic_launcher.xml') -Value $adaptive -Encoding UTF8
-Set-Content -Path (Join-Path $v26 'ic_launcher_round.xml') -Value $adaptive -Encoding UTF8
+Set-Content -Path (Join-Path $anydpi 'ic_launcher.xml') -Value $adaptive -Encoding UTF8
+Set-Content -Path (Join-Path $anydpi 'ic_launcher_round.xml') -Value $adaptive -Encoding UTF8
+
+$v26 = Join-Path $res 'mipmap-anydpi-v26'
+if (Test-Path $v26) { Remove-Item $v26 -Recurse -Force }
 
 $values = Join-Path $res 'values'
 New-Item -ItemType Directory -Force -Path $values | Out-Null
