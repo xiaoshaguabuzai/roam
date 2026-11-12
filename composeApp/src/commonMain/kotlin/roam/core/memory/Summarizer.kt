@@ -1,3 +1,6 @@
+/**
+ * 摘要器接口：与具体实现解耦。
+ */
 package roam.core.memory
 
 import roam.core.model.FactValue

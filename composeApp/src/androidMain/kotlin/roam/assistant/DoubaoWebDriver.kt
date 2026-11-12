@@ -1,13 +1,14 @@
+/**
+ * 豆包网页通道（Android）：注入提问并轮询回答。
+ */
 package roam.assistant
 
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import org.json.JSONObject
 import org.json.JSONTokener
 import roam.core.assistant.AssistantDriver
@@ -16,30 +17,25 @@ import roam.core.assistant.DriverStatus
 /**
  * 豆包网页通道（Android）。
  *
- * 做法：在应用内保持一个 WebView 打开豆包，复用用户手动登录后的 Cookie；
- * 发送问题时注入脚本写输入框并点发送，之后轮询最后一条回答文本，按增量回调。
+ * 在应用内保持一个 WebView 打开豆包，复用用户手动登录后的 Cookie：
+ * 发送问题时注入脚本写入输入框并点发送，随后轮询最后一条回答文本，以完整快照回调上层。
  *
- * 这类 DOM 自动化天然脆弱：站点改版、风控验证、页面未加载都会失败，
- * 因此每个失败路径都返回明确错误，由上层降级到本地骨架，而不是卡住会话。
+ * DOM 自动化天然脆弱：改版、风控、页面未加载都会失败。因此每条失败路径都返回明确错误，
+ * 由上层降级到本地骨架，不会卡住会话。
  */
 @SuppressLint("SetJavaScriptEnabled")
-class DoubaoWebDriver(context: Context, private val startUrl: String = HOME) : AssistantDriver {
+class DoubaoWebDriver(context: Context) : AssistantDriver {
 
     override val id: String = "doubao-web"
     override val label: String = "豆包网页"
 
+    /** 常驻 WebView，由 MainActivity 以 1:1 尺寸放到 Compose 下层。 */
     val webView: WebView = WebView(context).apply {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
+        // 去掉 "; wv" 标记，避免站点把应用内 WebView 识别成受限浏览器
         settings.userAgentString = settings.userAgentString.replace("; wv", "")
-        webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView?, url: String?) {
-                super.onPageFinished(view, url)
-                Log.d(TAG, "page finished: $url")
-                probe()
-            }
-        }
-        loadUrl(startUrl)
+        loadUrl(HOME)
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -49,9 +45,6 @@ class DoubaoWebDriver(context: Context, private val startUrl: String = HOME) : A
 
     init {
         CookieManager.getInstance().setAcceptCookie(true)
-        listOf(3000L, 8000L, 15000L).forEach { delay -> handler.postDelayed({ probe() }, delay) }
-        handler.postDelayed({ listText() }, 12000)
-        handler.postDelayed({ listText() }, 20000)
     }
 
     override fun status(): DriverStatus {
@@ -73,14 +66,12 @@ class DoubaoWebDriver(context: Context, private val startUrl: String = HOME) : A
             val my = ++generation
             lastText = ""
             idleTicks = 0
-            Log.d(TAG, "ask len=${prompt.length} url=${webView.url}")
 
             webView.evaluateJavascript(INSTALL_JS, null)
             webView.evaluateJavascript(
                 "window.__roamSend(${JSONObject.quote(prompt)}, ${JSONObject.quote(question)})",
             ) { raw ->
                 val result = unquote(raw)
-                Log.d(TAG, "send result=$result")
                 if (result != "sent") {
                     onError(
                         when (result) {
@@ -95,6 +86,12 @@ class DoubaoWebDriver(context: Context, private val startUrl: String = HOME) : A
         }
     }
 
+    /**
+     * 每 500ms 读取一次页面：
+     * - 先识别验证码/登录墙；
+     * - 再取回答快照；文本变化即回调，连续 6 次无变化视为生成结束；
+     * - 超过 240 次（约 2 分钟）报超时。
+     */
     private fun poll(
         my: Int,
         attempt: Int,
@@ -103,8 +100,6 @@ class DoubaoWebDriver(context: Context, private val startUrl: String = HOME) : A
         onError: (String) -> Unit,
     ) {
         if (my != generation) return
-        if (attempt == 8) debugDump()
-        if (attempt == 10 || attempt == 20) listText()
         if (attempt > 240) {
             onError("等待回答超时")
             return
@@ -112,12 +107,11 @@ class DoubaoWebDriver(context: Context, private val startUrl: String = HOME) : A
 
         handler.postDelayed({
             if (my != generation) return@postDelayed
-            // 页面可能在提问后发生路由/刷新，注入脚本会丢失；每次都幂等补注入。
+            // 提问后可能发生路由刷新，注入脚本会丢；每轮幂等补注入
             webView.evaluateJavascript(INSTALL_JS, null)
             webView.evaluateJavascript("window.__roamBlocked?window.__roamBlocked():''") { blockedRaw ->
                 val blocked = unquote(blockedRaw)
                 if (blocked.isNotEmpty()) {
-                    Log.d(TAG, "blocked=$blocked")
                     onError(
                         if (blocked == "captcha") "页面要求验证码，请在豆包页面里手动完成验证" else "页面要求登录",
                     )
@@ -126,7 +120,6 @@ class DoubaoWebDriver(context: Context, private val startUrl: String = HOME) : A
 
                 webView.evaluateJavascript("window.__roamAnswer?window.__roamAnswer():''") { raw ->
                     val text = unquote(raw)
-                    // onDelta 传的是「完整快照」，不是增量；上层直接替换展示文本。
                     if (text.isNotEmpty() && text != lastText) {
                         onDelta(text)
                         lastText = text
@@ -145,31 +138,7 @@ class DoubaoWebDriver(context: Context, private val startUrl: String = HOME) : A
         }, 500)
     }
 
-    private fun debugDump() {
-        webView.evaluateJavascript(
-            "JSON.stringify({url:location.href, hasDebug: !!window.__roamDebug, hasSend: !!window.__roamSend})",
-        ) { raw -> Log.d(TAG, "state=${unquote(raw)}") }
-        webView.evaluateJavascript("window.__roamDebug?window.__roamDebug():''") { raw ->
-            Log.d(TAG, "debug=${unquote(raw)}")
-        }
-        webView.evaluateJavascript("window.__roamDom?window.__roamDom():''") { raw ->
-            Log.d(TAG, "dom=${unquote(raw)}")
-        }
-        webView.evaluateJavascript("window.__roamList?window.__roamList():''") { raw ->
-            Log.d(TAG, "list=${unquote(raw)}")
-        }
-    }
-
-    private fun listText() {
-        webView.evaluateJavascript("window.__roamListText?window.__roamListText():''") { raw ->
-            Log.d(TAG, "listText=${unquote(raw).take(400)}")
-        }
-    }
-
-    private fun probe() {
-        webView.evaluateJavascript(PROBE_JS) { raw -> Log.d(TAG, "probe=${unquote(raw)}") }
-    }
-
+    /** evaluateJavascript 返回的是 JSON 字面量；字符串需要还原，null 视为空。 */
     private fun unquote(raw: String?): String {
         if (raw.isNullOrBlank() || raw == "null") return ""
         return runCatching {
@@ -181,10 +150,12 @@ class DoubaoWebDriver(context: Context, private val startUrl: String = HOME) : A
     }
 
     private companion object {
-        const val TAG = "RoamDriver"
         const val HOME = "https://www.doubao.com/chat/"
 
-        /** 注入一次：发送、读取最后一条回答、识别验证码/登录墙。 */
+        /**
+         * 幂等注入：发送提问、读取最后一条回答、识别验证码/登录墙。
+         * 只暴露 __roamSend / __roamAnswer / __roamBlocked 三个入口。
+         */
         val INSTALL_JS = """
             (function(){
               if (window.__roamInstalled) return;
@@ -212,7 +183,7 @@ class DoubaoWebDriver(context: Context, private val startUrl: String = HOME) : A
                     input.dispatchEvent(new InputEvent('input', {bubbles:true, inputType:'insertText', data:text}));
                   }
 
-                  // 等 React 状态更新后再点发送；豆包的发送键是带 send-btn-wrapper 的容器。
+                  // 等 React 状态更新后再点发送；发送键是带 send-btn-wrapper 的容器
                   setTimeout(function(){
                     var wrap = document.querySelector('[class*="send-btn-wrapper"]');
                     var btn = wrap ? (wrap.querySelector('button') || wrap) : null;
@@ -240,7 +211,7 @@ class DoubaoWebDriver(context: Context, private val startUrl: String = HOME) : A
                   var list = document.querySelector('[class*="message-list"]');
                   var text = '';
 
-                  // 首选：整段消息列表文本，从「用户问题」之后截断，拿到助手回复正文。
+                  // 首选：整段消息列表文本，从用户问题之后截断，取助手回复正文
                   if (list) {
                     // 用 textContent：折叠卡片里的正文不在 innerText 里，但仍在 DOM 中
                     text = (list.textContent || '').trim();
@@ -253,7 +224,7 @@ class DoubaoWebDriver(context: Context, private val startUrl: String = HOME) : A
                     }
                   }
 
-                  // 兜底：按候选类名取最长文本块。
+                  // 兜底：按候选类名取最长文本块
                   if (!text) {
                     var scope = list || document;
                     var nodes = Array.prototype.slice.call(
@@ -268,8 +239,8 @@ class DoubaoWebDriver(context: Context, private val startUrl: String = HOME) : A
                     text = nodes.length ? nodes[0].innerText.trim() : '';
                   }
 
+                  // 去掉生成状态、时间行、搜索状态行与消息操作按钮文案
                   text = text.replace(/(正在搜索|找到\s*\d+\s*篇资料|正在生成)\s*/g, '');
-                  // 去掉时间行、搜索状态行与消息操作按钮文案
                   text = text.replace(/(今天|昨天|前天)\s*\d{1,2}:\d{2}\s*/g, '');
                   text = text.replace(/搜索\s*\d+\s*个关键词[，,]\s*参考\s*\d+\s*篇资料\s*/g, '');
                   text = text.replace(/展开全部|收起|复制|分享|重新生成|点赞|点踩/g, '');
@@ -279,96 +250,12 @@ class DoubaoWebDriver(context: Context, private val startUrl: String = HOME) : A
                 } catch (e) { return ''; }
               };
 
-              window.__roamList = function(){                try {
-                  var list = document.querySelector('[class*="message-list"]');
-                  if (!list) return 'no-list';
-                  var nodes = Array.prototype.slice.call(list.querySelectorAll('*')).filter(function(n){
-                    return (n.children.length === 0) && ((n.innerText || '').trim().length > 0);
-                  });
-                  return JSON.stringify(nodes.slice(-6).map(function(n){
-                    return { c: (n.className || '').toString().slice(0, 60), t: (n.innerText || '').slice(0, 60) };
-                  }));
-                } catch (e) { return 'list-error:' + e.message; }
-              };
-
-              window.__roamListText = function(){
-                try {
-                  var list = document.querySelector('[class*="message-list"]');
-                  return list ? (list.innerText || '').slice(-800) : 'no-list';
-                } catch (e) { return 'list-text-error:' + e.message; }
-              };
-
               window.__roamBlocked = function(){
                 var t = document.body ? document.body.innerText : '';
                 if (/拖动下方滑块|请完成验证|安全验证|完成验证/.test(t)) return 'captcha';
                 if (/登录后(继续|使用)|请先登录|扫码登录/.test(t) && !/退出登录/.test(t)) return 'login';
                 return '';
               };
-
-              window.__roamDom = function(){
-                try {
-                  var out = { testids: [], classes: [] };
-                  var els = document.querySelectorAll('[data-testid]');
-                  for (var i = 0; i < els.length && out.testids.length < 40; i++) {
-                    var id = els[i].getAttribute('data-testid') || '';
-                    if (/message|chat|conversation|answer|reply|turn|bubble|markdown/i.test(id)) out.testids.push(id);
-                  }
-                  var seen = {};
-                  var all = document.querySelectorAll('div');
-                  for (var j = 0; j < all.length && out.classes.length < 40; j++) {
-                    var c = (all[j].className || '').toString();
-                    if (!c || seen[c]) continue;
-                    if (/markdown|message|answer|reply|bubble|chat-content|flow/i.test(c)) {
-                      seen[c] = 1;
-                      out.classes.push(c.slice(0, 80));
-                    }
-                  }
-                  return JSON.stringify(out);
-                } catch (e) { return 'dom-error:' + e.message; }
-              };
-
-              window.__roamDebug = function(){                try {
-                  var bodyText = document.body ? document.body.innerText : '';
-                  var prompt = window.__roamLastPrompt || '';
-                  var pick = function(sel){
-                    return Array.prototype.slice.call(document.querySelectorAll(sel))
-                      .filter(function(n){ return (n.innerText || '').trim().length > 0; })
-                      .slice(-5)
-                      .map(function(n){
-                        return { c: (n.className || '').toString().slice(0, 60), l: (n.innerText || '').length };
-                      });
-                  };
-                  return JSON.stringify({
-                    url: location.href,
-                    promptInBody: prompt.length > 0 && bodyText.indexOf(prompt) >= 0,
-                    markdown: pick('[class*="markdown"]'),
-                    message: pick('[class*="message"]'),
-                    answer: pick('[class*="answer"]')
-                  });
-                } catch (e) { return 'debug-error:' + e.message; }
-              };
-            })();
-        """.trimIndent()
-
-        /** 只用于诊断：把页面结构计数打到 logcat。 */
-        val PROBE_JS = """
-            (function(){
-              var vis = function(sel){
-                return Array.prototype.slice.call(document.querySelectorAll(sel)).filter(function(n){
-                  var r = n.getBoundingClientRect();
-                  return n.offsetParent !== null && r.width > 80 && r.height > 10;
-                }).length;
-              };
-              return JSON.stringify({
-                url: location.href,
-                editable: vis('[contenteditable="true"]'),
-                textarea: vis('textarea'),
-                buttons: document.querySelectorAll('button').length,
-                loginBtn: Array.prototype.slice.call(document.querySelectorAll('button')).filter(function(b){
-                  return /登录/.test(b.innerText || '');
-                }).length,
-                body: (document.body ? document.body.innerText : '').slice(0, 120)
-              });
             })();
         """.trimIndent()
     }

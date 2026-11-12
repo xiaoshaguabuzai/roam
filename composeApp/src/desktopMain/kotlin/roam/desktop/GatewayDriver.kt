@@ -1,3 +1,6 @@
+/**
+ * 桌面通道：通过 HTTP 连接 FreeBridge。
+ */
 package roam.desktop
 
 import kotlinx.serialization.json.Json

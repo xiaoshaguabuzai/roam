@@ -1,3 +1,6 @@
+/**
+ * 记忆引擎单测：压缩、重建、预算与导出。
+ */
 package roam.core.memory
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver

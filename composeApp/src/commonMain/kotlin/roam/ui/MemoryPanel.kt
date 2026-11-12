@@ -1,3 +1,6 @@
+/**
+ * 记忆面板：摘要、事实、压缩状态与操作。
+ */
 package roam.ui
 
 import androidx.compose.foundation.background

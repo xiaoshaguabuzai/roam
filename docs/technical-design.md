@@ -87,7 +87,6 @@ roam/
 │  └─ src/commonTest/          # 记忆/协议/压缩的纯逻辑单测（两端共用）
 ├─ bridge/                     # Node/TS FreeBridge（Playwright + OpenAI 兼容 + MCP 代理）
 ├─ docs/                       # 方案、可行性报告、ADR
-├─ spikes/                     # M0 实验（含 e7-cmp CMP 冒烟）
 └─ scripts/                    # 便携工具链
 ```
 

@@ -1,3 +1,6 @@
+/**
+ * 只读手机工具：剪贴板、应用、日历与通知。
+ */
 package roam.tools
 
 import android.Manifest

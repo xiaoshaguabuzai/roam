@@ -6,6 +6,7 @@ English | [简体中文](README.zh-CN.md)
 > It answers through a free web assistant you already log into (Doubao / Qwen), keeps every memory in local SQLite,
 > and exposes phone capabilities as tools — all in one Compose Multiplatform codebase.
 
+[![CI](https://github.com/xiaoshaguabuzai/roam/actions/workflows/ci.yml/badge.svg)](https://github.com/xiaoshaguabuzai/roam/actions/workflows/ci.yml)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2.21-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Compose Multiplatform](https://img.shields.io/badge/Compose%20Multiplatform-1.9.3-4285F4)](https://www.jetbrains.com/compose-multiplatform/)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Desktop-lightgrey)](#)
@@ -104,7 +105,6 @@ composeApp/          Compose Multiplatform app (commonMain / androidMain / deskt
   └─ androidMain     WebView driver, phone tools, notification listener
 bridge/              FreeBridge: Playwright gateway for the desktop channel
 docs/                design, feasibility report, UI spec, ADRs, evidence
-spikes/              M0 experiments (web probe, protocol, MCP, memory, CMP)
 scripts/             portable toolchain and icon generator
 ```
 
@@ -116,7 +116,6 @@ scripts/             portable toolchain and icon generator
 | [docs/feasibility-report.md](docs/feasibility-report.md) | measured M0 experiments and go/no-go |
 | [docs/ui-spec.md](docs/ui-spec.md) | DSH-style UI spec and mobile adaptation |
 | [docs/adr/](docs/adr) | key decisions (layered memory, free-channel drivers, CMP) |
-| [spikes/README.md](spikes/README.md) | how to reproduce every experiment |
 
 ## Testing
 
@@ -126,6 +125,8 @@ scripts/             portable toolchain and icon generator
 ```
 
 Covered: memory seq/compaction/rebuild/export, tool protocol parsing, local intent routing.
+
+GitHub Actions runs the same suite plus Android lint and an APK build on every push and pull request (.github/workflows/ci.yml). Pushing a * tag builds and publishes the APK and a Linux desktop bundle (.github/workflows/release.yml).
 
 ## Known limitations
 

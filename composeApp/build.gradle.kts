@@ -1,6 +1,8 @@
 // Roam · Compose Multiplatform 全栈 Agent
 //
 // 版本必须成组升级：Kotlin 2.2.21 ↔ Compose 编译器插件 2.2.21 ↔ CMP 1.9.3。
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+
 plugins {
     kotlin("multiplatform") version "2.2.21"
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.21"
@@ -77,6 +79,11 @@ android {
 compose.desktop {
     application {
         mainClass = "roam.MainKt"
+        nativeDistributions {
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            packageName = "Roam"
+            packageVersion = "1.0.0"
+        }
     }
 }
 

@@ -1,3 +1,6 @@
+/**
+ * 确定性抽取式摘要器：离线可测，不依赖模型。
+ */
 package roam.core.memory
 
 import roam.core.model.FactValue

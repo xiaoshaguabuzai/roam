@@ -1,3 +1,6 @@
+/**
+ * 输入区：多行输入、发送、通道 chip 与状态行。
+ */
 package roam.ui
 
 import androidx.compose.foundation.background
@@ -96,7 +99,7 @@ fun Composer(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             Modifier.size(28.dp).clip(CircleShape).background(Dsh.surface)
-                                .clickable { /* 附件入口：M2 接文件/剪贴板 */ },
+                                .clickable { /* 附件入口：尚未实现，后续接入文件选择 */ },
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(Icons.Outlined.Add, null, tint = Dsh.textSecondary, modifier = Modifier.size(16.dp))

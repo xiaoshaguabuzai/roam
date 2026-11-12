@@ -1,3 +1,6 @@
+/**
+ * 侧栏：会话列表与导航。
+ */
 package roam.ui
 
 import androidx.compose.foundation.BorderStroke

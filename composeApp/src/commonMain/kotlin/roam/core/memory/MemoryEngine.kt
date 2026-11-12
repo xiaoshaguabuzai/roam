@@ -1,3 +1,6 @@
+/**
+ * 分层记忆引擎：L0 原文 → L1 分段 → L2 会话 → L3 事实。
+ */
 package roam.core.memory
 
 import roam.db.Fact as FactEntity

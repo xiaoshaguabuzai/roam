@@ -1,3 +1,6 @@
+/**
+ * 主界面：三栏/抽屉布局、断点适配与系统栏 insets。
+ */
 package roam.ui
 
 import androidx.compose.animation.AnimatedVisibility

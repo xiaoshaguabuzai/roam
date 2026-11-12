@@ -1,3 +1,6 @@
+/**
+ * 工具抽象、参数规格与注册表。
+ */
 package roam.core.tool
 
 import kotlinx.serialization.json.JsonObject

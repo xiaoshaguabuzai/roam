@@ -1,3 +1,6 @@
+/**
+ * 模型与登录面板。
+ */
 package roam.ui
 
 import androidx.compose.foundation.BorderStroke
@@ -33,7 +36,7 @@ import androidx.compose.ui.window.Dialog
 
 /**
  * 模型与登录：DSH 的模型选择在输入框上方，这里同样从输入区进入。
- * 目前只有登录入口（WebView / 系统浏览器），通道能力在 M1-3 接入。
+ * 只负责登录入口（WebView / 系统浏览器）；通道是否就绪由 AssistantDriver 提供。
  */
 @Composable
 fun ModelSheet(

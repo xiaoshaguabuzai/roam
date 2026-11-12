@@ -1,3 +1,6 @@
+/**
+ * 应用根：把记忆引擎、免费通道与工具注册表注入主界面。
+ */
 package roam.app
 
 import androidx.compose.runtime.Composable

@@ -1,3 +1,6 @@
+/**
+ * 通知监听服务与授权检测。
+ */
 package roam.tools
 
 import android.app.Notification

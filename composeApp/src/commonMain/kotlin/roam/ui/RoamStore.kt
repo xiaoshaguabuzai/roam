@@ -1,3 +1,6 @@
+/**
+ * UI 状态与编排：会话、流式回答、工具循环与记忆刷新。
+ */
 package roam.ui
 
 import androidx.compose.runtime.getValue
@@ -47,7 +50,6 @@ class RoamStore(
     var trace by mutableStateOf<List<TraceEvent>>(emptyList()); private set
     var tab by mutableStateOf(0); private set
     var showMemory by mutableStateOf(false); private set
-    var notice by mutableStateOf<String?>(null); private set
     var lastTools by mutableStateOf<List<ToolCallRecord>>(emptyList()); private set
 
     fun boot() {
@@ -91,8 +93,6 @@ class RoamStore(
             DriverStatus.UNAVAILABLE -> "${active.label} · 未启动"
         }
     }
-
-    fun hasChannel(): Boolean = driver != null
 
     /** 助手消息头部标签：真实通道显示通道名，降级时显示本地骨架。 */
     fun assistantLabel(): String = driver?.label ?: "本地骨架"
@@ -250,8 +250,6 @@ class RoamStore(
             refresh()
         }
     }
-
-    fun dismissNotice() { notice = null }
 
     private fun refresh() {
         sessions = engine.sessions()

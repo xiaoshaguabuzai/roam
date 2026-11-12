@@ -1,3 +1,6 @@
+/**
+ * 网页登录入口：按目标生成登录 URL。
+ */
 package roam.ui
 
 /** 免费通道登录入口：Android 用内置 WebView 打开，桌面用系统浏览器。 */

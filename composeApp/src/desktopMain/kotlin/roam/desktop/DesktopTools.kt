@@ -1,3 +1,6 @@
+/**
+ * 桌面只读工具：剪贴板。
+ */
 package roam.desktop
 
 import kotlinx.serialization.json.JsonObject

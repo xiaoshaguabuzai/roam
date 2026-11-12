@@ -48,17 +48,15 @@
 - 登录态下的首字/整答时延、连续 30 条的成功率、选择器稳定性——**尚未测**，需要一次人工登录。
 - 曾出现的 406 排查结论：与网页通道无关，是 E3 的服务端缺 `ContentNegotiation`，见下。
 
-### 待补
+### 待补（后续已在 M1-3 落地）
 
-```powershell
-cd spikes\e1-web-driver
-node probe.mjs --mode login --site doubao     # 人工登录一次，保存登录态
-node probe.mjs --mode ask   --site doubao     # 用登录态发问，记录首字/整答
-```
+登录态下的首字/整答时延、连续 30 条成功率、选择器稳定性，已由 M1-3 的真机通道验证覆盖：
+结果见 README 的真机截图与 `docs/evidence/phone-real-answer.png`。实验脚本已从仓库移除，
+需要重跑时可在 git 历史中找到当时的 `spikes/e1-web-driver`。
 
 ## 四、E2 工具协议（规则通过）
 
-- 解析器 `spikes/e2-tool-protocol/protocol.mjs` 覆盖：Markdown 代码块、前后缀说明文字、尾逗号、
+- 解析器（应用内 `AgentProtocol`）覆盖：Markdown 代码块、前后缀说明文字、尾逗号、
   中文引号/全角冒号、BOM、字段别名（`name`/`function`/`answer`）、`args` 为字符串、
   嵌套 JSON 字符串、数组包裹单个调用、多调用歧义、纯文本降级、空输出、截断 JSON。
 - 结果：**36/36 通过**，平均 25.3µs；修复后成功 3 例；纯文本会优雅降级为「直接回答」而不是报错。
@@ -108,7 +106,7 @@ tools/call: 200 {"result":{"content":[{"text":"{\"apps\":[...]}","type":"text"}]
 
 ## 六、E4 记忆策略（结构验证通过）
 
-`spikes/e4-memory/sim.mjs`，200 轮合成语料，第 10/40/90/150 轮植入 4 条事实：
+200 轮合成语料，第 10/40/90/150 轮植入 4 条事实（实验脚本已归档，数据保留）：
 
 | 策略 | 累计 token | 均值/轮 | 峰值/轮 | 早期事实命中 |
 |---|---|---|---|---|
@@ -123,7 +121,7 @@ tools/call: 200 {"result":{"content":[{"text":"{\"apps\":[...]}","type":"text"}]
 
 ## 七、E7 CMP 跨端冒烟（通过）
 
-`spikes/e7-cmp/`：最小 Compose Multiplatform 工程，`commonMain` 放同一份 UI，`androidMain` / `desktopMain`
+最小 Compose Multiplatform 工程（已归档）：`commonMain` 放同一份 UI，`androidMain` / `desktopMain`
 各写一个平台入口。
 
 ```
@@ -180,4 +178,5 @@ E5 不达标 → 缩短链路、把重活移到网关。
 
 ## 十、复现方式
 
-见 [../spikes/README.md](../spikes/README.md)。所有实验脚本均可重复运行，原始数据在 `spikes/*/out/`。
+实验脚本（E1/E2/E3/E4/E7）已从当前仓库移除，避免把一次性验证代码混进产品构建；
+需要复核时可从 git 历史取出。当前版本的构建与测试方式见 [README](../README.md) 的 Testing 一节。

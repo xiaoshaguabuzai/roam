@@ -1,3 +1,6 @@
+/**
+ * 本地意图路由：常见只读请求直接映射到工具。
+ */
 package roam.core.tool
 
 import kotlinx.serialization.json.JsonObject

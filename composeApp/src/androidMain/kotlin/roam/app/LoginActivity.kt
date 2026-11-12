@@ -1,3 +1,6 @@
+/**
+ * 网页登录页：WebView 打开豆包/千问并持久化 Cookie。
+ */
 package roam.app
 
 import android.annotation.SuppressLint

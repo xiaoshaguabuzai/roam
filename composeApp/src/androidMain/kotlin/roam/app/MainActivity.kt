@@ -1,3 +1,6 @@
+/**
+ * Android 入口：组装记忆引擎、工具注册表与 WebView 通道。
+ */
 package roam.app
 
 import android.Manifest
@@ -55,8 +58,7 @@ class MainActivity : ComponentActivity() {
             requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR), 1001)
         }
 
-        val debugUrl = intent?.getStringExtra("url")
-        val webDriver = DoubaoWebDriver(this, debugUrl ?: "https://www.doubao.com/chat/")
+        val webDriver = DoubaoWebDriver(this)
 
         setContent {
             Box(Modifier.fillMaxSize()) {

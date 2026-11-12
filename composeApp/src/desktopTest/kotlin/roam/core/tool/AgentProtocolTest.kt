@@ -1,3 +1,6 @@
+/**
+ * 工具协议单测：解析、修复与降级。
+ */
 package roam.core.tool
 
 import kotlinx.serialization.json.JsonObject

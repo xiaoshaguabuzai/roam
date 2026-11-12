@@ -1,3 +1,6 @@
+/**
+ * 免费通道抽象：统一通道状态与流式提问接口。
+ */
 package roam.core.assistant
 
 enum class DriverStatus {

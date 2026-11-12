@@ -1,3 +1,6 @@
+/**
+ * 消息流：气泡、工具卡片、轨迹与流式光标。
+ */
 package roam.ui
 
 import androidx.compose.foundation.background

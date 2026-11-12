@@ -1,3 +1,6 @@
+/**
+ * DSH 设计令牌：颜色、尺寸与排版。
+ */
 package roam.ui
 
 import androidx.compose.material3.Typography

@@ -1,3 +1,6 @@
+/**
+ * 文本工具协议：解析、修复与降级。
+ */
 package roam.core.tool
 
 import kotlinx.serialization.json.Json

@@ -6,6 +6,7 @@
 > 用你已经登录的免费网页助手（豆包 / 千问）作答，记忆全部落本地 SQLite，手机能力以工具形式交给模型，
 > 全部代码共享同一套 Compose Multiplatform。
 
+[![CI](https://github.com/xiaoshaguabuzai/roam/actions/workflows/ci.yml/badge.svg)](https://github.com/xiaoshaguabuzai/roam/actions/workflows/ci.yml)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2.21-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Compose Multiplatform](https://img.shields.io/badge/Compose%20Multiplatform-1.9.3-4285F4)](https://www.jetbrains.com/compose-multiplatform/)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Desktop-lightgrey)](#)
@@ -103,7 +104,6 @@ composeApp/          Compose Multiplatform 应用（commonMain / androidMain / d
   └─ androidMain     WebView 驱动、手机工具、通知监听
 bridge/              FreeBridge：桌面通道的 Playwright 网关
 docs/                方案、可行性报告、UI 规格、ADR、证据截图
-spikes/              M0 实验（网页探测、协议、MCP、记忆成本、CMP 冒烟）
 scripts/             便携工具链与图标生成
 ```
 
@@ -115,7 +115,6 @@ scripts/             便携工具链与图标生成
 | [docs/feasibility-report.md](docs/feasibility-report.md) | M0 实测数据与 Go/No-Go |
 | [docs/ui-spec.md](docs/ui-spec.md) | DSH 风格 UI 规格与移动端适配 |
 | [docs/adr/](docs/adr) | 关键决策（分层记忆、免费通道驱动、CMP） |
-| [spikes/README.md](spikes/README.md) | 每个实验的复现方式 |
 
 ## 测试
 
@@ -125,6 +124,8 @@ scripts/             便携工具链与图标生成
 ```
 
 覆盖：记忆序列/压缩/重建/导出、工具协议解析、本地意图路由。
+
+GitHub Actions 在每次 push / PR 跑同一套测试，外加 Android lint 与 APK 构建（.github/workflows/ci.yml）；推送 * tag 会构建并发布 APK 与 Linux 桌面包（.github/workflows/release.yml）。
 
 ## 已知限制
 
